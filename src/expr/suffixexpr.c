@@ -138,7 +138,8 @@ token_t * scan() {
     int expr_pre_pos;
 
     cur_char = infix_expr[expr_pos];
-    while ((cur_char == ' ' || cur_char == '\t' || cur_char == '\n') && expr_pos < EXPR_LEN_MAX) {
+    while ((cur_char == ' ' || cur_char == '\t' || cur_char == '\n')
+        && expr_pos < EXPR_LEN_MAX) {
         cur_char = infix_expr[++ expr_pos];
     }
 
@@ -168,8 +169,9 @@ token_t * scan() {
     expr_pre_pos = expr_pos;
     do {
         cur_char = infix_expr[++ expr_pos];
-    } while ((expr_pos < EXPR_LEN_MAX) && (cur_char != 0) && (DIGIT == get_token_type(cur_char))
-           && (cur_char != ' ') && (cur_char != '\t') && (cur_char != '\n'));
+    } while (expr_pos < EXPR_LEN_MAX
+        && cur_char != 0 && DIGIT == get_token_type(cur_char)
+        && (cur_char != ' ') && (cur_char != '\t') && (cur_char != '\n'));
 
     set_cur_token(&cur_token, &infix_expr[expr_pre_pos], expr_pos - expr_pre_pos, DIGIT);
     return &cur_token;
@@ -303,9 +305,10 @@ void result() {
 }
 
 int main() {
-    while (strcmp("quit", infix_expr)) {
+    while (1) {
         reset();
         scanf("%s", infix_expr);
+        if (!strcmp("quit", infix_expr)) break;
         printf("InfixExpress: %s\n", infix_expr);
         calc();
         result();
