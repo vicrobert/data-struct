@@ -13,7 +13,8 @@ enum _token_type
     NIL = 0,
     DIGIT = 1,
     ALPHABET = 2,
-    OP = 3
+    OP = 3,
+    BAD_TOKEN = 1000
 };
 typedef enum _token_type token_type_t;
 
@@ -37,14 +38,15 @@ struct _token_stack {
 typedef struct _token_stack token_stack_t;
 
 const char VALID_DIGIT[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.'};
-const char VALID_OP[] = {'+', '-', '*', '/', '%', '(', ')'};
+const char VALID_OP[] = {'+', '-', '*', '/', '%', '(', ')', '^'};
 const int VALID_DIGIT_LEN = 11;
-const int VALID_OP_LEN = 7;
+const int VALID_OP_LEN = 8;
 
 token_queue_t token_queue = {};
 token_stack_t token_stack = {};
 token_t cur_token = {};
 token_t pre_token = {};
+token_t bad_token = {"", BAD_TOKEN};
 
 char infix_expr[EXPR_LEN_MAX] = "";
 int expr_pos = 0;
@@ -117,6 +119,7 @@ int operator_prior(char op) {
         case '*':
         case '/':
         case '%':
+        case '^':
             return 2;
         case '+':
         case '-':
@@ -150,15 +153,17 @@ token_t * scan() {
     memcpy(&pre_token, &cur_token, sizeof(token_t));
     // If OP then return
     if (OP == get_token_type(cur_char)) {
-        if ((cur_char == '-' || cur_char == '+')
-            && (pre_token.token_type == NIL
-                || !strcmp("(", pre_token.lexeme)
-                || !strcmp("+", pre_token.lexeme)
-                || !strcmp("-", pre_token.lexeme)
-                || !strcmp("*", pre_token.lexeme)
-                || !strcmp("/", pre_token.lexeme)
-                || !strcmp("%", pre_token.lexeme))
-        ) {
+        if ((cur_char == '-' || cur_char == '+')) {
+            if (pre_token.token_type == NIL || !strcmp("(", pre_token.lexeme)) {
+                set_cur_token(&cur_token, "0", 1, DIGIT);
+                return &cur_token;
+            }
+            if (!strcmp("+", pre_token.lexeme) || !strcmp("-", pre_token.lexeme)
+                || !strcmp("*", pre_token.lexeme) || !strcmp("/", pre_token.lexeme)
+                || !strcmp("%", pre_token.lexeme) || !strcmp("^", pre_token.lexeme)) {
+                sprintf(bad_token.lexeme, "Bad symbol at col %d", expr_pos + 1);
+                return &bad_token;
+            }
         } else {
             expr_pos ++;
             set_cur_token(&cur_token, &cur_char, 1, OP);
@@ -177,9 +182,13 @@ token_t * scan() {
     return &cur_token;
 }
 
-void parse() {
-    while (scan() != NULL) {
+int parse() {
+    token_t * s;
+    while ((s = scan()) != NULL) {
         token_t *top;
+        if (s->token_type == BAD_TOKEN) {
+            return 1;
+        }
         if (DIGIT == cur_token.token_type) {
             en_token_queue(&token_queue, &cur_token);
         } else if (OP == cur_token.token_type) {
@@ -212,6 +221,7 @@ void parse() {
     while (!is_stack_empty(&token_stack)) {
         en_token_queue(&token_queue, pop_token_stack(&token_stack));
     }
+    return 0;
 }
 
 token_t * calc_add(token_t * left, token_t * right) {
@@ -264,6 +274,24 @@ token_t * calc_remaind(token_t * left, token_t * right) {
     return &cur_token;
 }
 
+token_t * calc_power(token_t * left, token_t * right) {
+    char res_str[EXPR_LEN_MAX] = {0};
+    double left_num = strtod(left->lexeme, NULL);
+    double right_num = strtod(right->lexeme, NULL);
+    double res = pow(left_num, right_num);
+    sprintf(res_str, "%f", res);
+    set_cur_token(&cur_token, res_str, strlen(res_str), DIGIT);
+    return &cur_token;
+}
+
+token_t * calc_oppos(token_t * origin) {
+    char oppos_str[EXPR_LEN_MAX] = {0};
+    double origin_num = strtod(origin->lexeme, NULL);
+    sprintf(oppos_str, "%f", - origin_num);
+    set_cur_token(&cur_token, oppos_str, strlen(oppos_str), DIGIT);
+    return &cur_token;
+}
+
 void do_calc() {
     token_t * t;
     memset(&token_stack, 0, sizeof(token_stack_t));
@@ -289,14 +317,20 @@ void do_calc() {
                 case '%':
                     push_token_stack(&token_stack, calc_remaind(left, right));
                     break;
+                case '^':
+                    push_token_stack(&token_stack, calc_power(left, right));
+                    break;
             }
         }
     }
 }
 
-void calc() {
-    parse();
-    do_calc();
+void post_exp() {
+    printf("PostExpression: ");
+    for (int i = token_queue.head; i < token_queue.tail; i ++) {
+        printf("[%s] ", token_queue.queue[i].lexeme);
+    }
+    printf("\n");
 }
 
 void result() {
@@ -304,14 +338,31 @@ void result() {
     if (t != NULL) printf("%s\n", t->lexeme);
 }
 
+void error() {
+    printf("ERROR: %s\n", bad_token.lexeme);
+}
+
+void calc() {
+    if (!parse()) {
+        post_exp();
+        do_calc();
+        result();
+    } else {
+        error();
+    }
+}
+
+
+
 int main() {
+    printf("Expression Evaluator 1.0\nBy YangJunbo(yangjunbo@360.cn) 12/22/23\n");
     while (1) {
         reset();
+        printf(">>>");
         scanf("%s", infix_expr);
         if (!strcmp("quit", infix_expr)) break;
         printf("InfixExpress: %s\n", infix_expr);
         calc();
-        result();
     }
 
     return 0;
