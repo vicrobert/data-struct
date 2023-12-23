@@ -8,8 +8,7 @@
 
 #define EXPR_LEN_MAX    1024
 
-enum _token_type
-{
+enum _token_type {
     NIL = 0,
     DIGIT = 1,
     ALPHABET = 2,
@@ -65,25 +64,25 @@ void set_cur_token(token_t * token, const char * lex, int lex_len, token_type_t 
     token->token_type = token_type;
 }
 
-void en_token_queue(token_queue_t * q, token_t * t) {
+void token_enqueue(token_queue_t * q, token_t * t) {
     if (q->tail == EXPR_LEN_MAX && q->head == 0) return;
     q->tail %= EXPR_LEN_MAX;
     memcpy(&q->queue[q->tail ++], t, sizeof(token_t));
 }
 
-token_t * de_token_queue(token_queue_t * q) {
+token_t * token_dequeue(token_queue_t * q) {
     if (q->head == q->tail) return NULL;
     q->head %= EXPR_LEN_MAX;
     return &q->queue[q->head ++];
 }
 
-void push_token_stack(token_stack_t * s, token_t * t) {
+void token_stack_push(token_stack_t * s, token_t * t) {
     if (s->top >= EXPR_LEN_MAX) return;
     if (s->top < 0) s->top = 0;
     memcpy(&s->stack[s->top ++], t, sizeof(token_t));
 }
 
-token_t * pop_token_stack(token_stack_t * s) {
+token_t * token_stack_pop(token_stack_t * s) {
     if (s->top <= 0) return NULL;
     if (s->top > EXPR_LEN_MAX) s->top = EXPR_LEN_MAX;
     return &s->stack[-- s->top];
@@ -164,11 +163,10 @@ token_t * scan() {
                 sprintf(bad_token.lexeme, "Bad symbol at col %d", expr_pos + 1);
                 return &bad_token;
             }
-        } else {
-            expr_pos ++;
-            set_cur_token(&cur_token, &cur_char, 1, OP);
-            return &cur_token;
         }
+        expr_pos ++;
+        set_cur_token(&cur_token, &cur_char, 1, OP);
+        return &cur_token;
     }
 
     expr_pre_pos = expr_pos;
@@ -190,36 +188,36 @@ int parse() {
             return 1;
         }
         if (DIGIT == cur_token.token_type) {
-            en_token_queue(&token_queue, &cur_token);
+            token_enqueue(&token_queue, &cur_token);
         } else if (OP == cur_token.token_type) {
             if (!strcmp("(", cur_token.lexeme)) {
-                push_token_stack(&token_stack, &cur_token);
+                token_stack_push(&token_stack, &cur_token);
             } else if (!strcmp(")", cur_token.lexeme)) {
                 while (!is_stack_empty(&token_stack)) {
-                    top = pop_token_stack(&token_stack);
+                    top = token_stack_pop(&token_stack);
                     if (!strcmp("(", top->lexeme)) {
                         break;
                     }
-                    en_token_queue(&token_queue, top);
+                    token_enqueue(&token_queue, top);
                 }
             } else {
                 while (!is_stack_empty(&token_stack)) {
                     top = peek_token_stack(&token_stack);
                     if (operator_prior_compare(top->lexeme[0],
                                              cur_token.lexeme[0]) >= 0) {
-                        en_token_queue(&token_queue, top);
-                        pop_token_stack(&token_stack);
+                        token_enqueue(&token_queue, top);
+                        token_stack_pop(&token_stack);
                     } else {
                         break;
                     }
                 }
-                push_token_stack(&token_stack, &cur_token);
+                token_stack_push(&token_stack, &cur_token);
             }
         }
     }
     //Deal remains
     while (!is_stack_empty(&token_stack)) {
-        en_token_queue(&token_queue, pop_token_stack(&token_stack));
+        token_enqueue(&token_queue, token_stack_pop(&token_stack));
     }
     return 0;
 }
@@ -295,30 +293,30 @@ token_t * calc_oppos(token_t * origin) {
 void do_calc() {
     token_t * t;
     memset(&token_stack, 0, sizeof(token_stack_t));
-    while ((t = de_token_queue(&token_queue)) != NULL ) {
+    while ((t = token_dequeue(&token_queue)) != NULL ) {
         if (t->token_type == DIGIT) {
-            push_token_stack(&token_stack, t);
+            token_stack_push(&token_stack, t);
         } else if (t->token_type == OP) {
-            token_t * right = pop_token_stack(&token_stack);
-            token_t * left = pop_token_stack(&token_stack);
+            token_t * right = token_stack_pop(&token_stack);
+            token_t * left = token_stack_pop(&token_stack);
             switch (t->lexeme[0]) {
                 case '+':
-                    push_token_stack(&token_stack, calc_add(left, right));
+                    token_stack_push(&token_stack, calc_add(left, right));
                     break;
                 case '-':
-                    push_token_stack(&token_stack, calc_minus(left, right));
+                    token_stack_push(&token_stack, calc_minus(left, right));
                     break;
                 case '*':
-                    push_token_stack(&token_stack, calc_mult(left, right));
+                    token_stack_push(&token_stack, calc_mult(left, right));
                     break;
                 case '/':
-                    push_token_stack(&token_stack, calc_div(left, right));
+                    token_stack_push(&token_stack, calc_div(left, right));
                     break;
                 case '%':
-                    push_token_stack(&token_stack, calc_remaind(left, right));
+                    token_stack_push(&token_stack, calc_remaind(left, right));
                     break;
                 case '^':
-                    push_token_stack(&token_stack, calc_power(left, right));
+                    token_stack_push(&token_stack, calc_power(left, right));
                     break;
             }
         }
