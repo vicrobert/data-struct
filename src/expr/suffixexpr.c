@@ -76,19 +76,19 @@ token_t * token_dequeue(token_queue_t * q) {
     return &q->queue[q->head ++];
 }
 
-void token_stack_push(token_stack_t * s, token_t * t) {
+void token_pushstack(token_stack_t * s, token_t * t) {
     if (s->top >= EXPR_LEN_MAX) return;
     if (s->top < 0) s->top = 0;
     memcpy(&s->stack[s->top ++], t, sizeof(token_t));
 }
 
-token_t * token_stack_pop(token_stack_t * s) {
+token_t * token_popstack(token_stack_t * s) {
     if (s->top <= 0) return NULL;
     if (s->top > EXPR_LEN_MAX) s->top = EXPR_LEN_MAX;
     return &s->stack[-- s->top];
 }
 
-token_t * peek_token_stack(token_stack_t * s) {
+token_t * token_peekstack(token_stack_t * s) {
     if (s->top <= 0) return NULL;
     if (s->top > EXPR_LEN_MAX) s->top = EXPR_LEN_MAX;
     return &s->stack[s->top - 1];
@@ -191,10 +191,10 @@ int parse() {
             token_enqueue(&token_queue, &cur_token);
         } else if (OP == cur_token.token_type) {
             if (!strcmp("(", cur_token.lexeme)) {
-                token_stack_push(&token_stack, &cur_token);
+                token_pushstack(&token_stack, &cur_token);
             } else if (!strcmp(")", cur_token.lexeme)) {
                 while (!is_stack_empty(&token_stack)) {
-                    top = token_stack_pop(&token_stack);
+                    top = token_popstack(&token_stack);
                     if (!strcmp("(", top->lexeme)) {
                         break;
                     }
@@ -202,22 +202,22 @@ int parse() {
                 }
             } else {
                 while (!is_stack_empty(&token_stack)) {
-                    top = peek_token_stack(&token_stack);
+                    top = token_peekstack(&token_stack);
                     if (operator_prior_compare(top->lexeme[0],
                                              cur_token.lexeme[0]) >= 0) {
                         token_enqueue(&token_queue, top);
-                        token_stack_pop(&token_stack);
+                        token_popstack(&token_stack);
                     } else {
                         break;
                     }
                 }
-                token_stack_push(&token_stack, &cur_token);
+                token_pushstack(&token_stack, &cur_token);
             }
         }
     }
     //Deal remains
     while (!is_stack_empty(&token_stack)) {
-        token_enqueue(&token_queue, token_stack_pop(&token_stack));
+        token_enqueue(&token_queue, token_popstack(&token_stack));
     }
     return 0;
 }
@@ -295,28 +295,28 @@ void do_calc() {
     memset(&token_stack, 0, sizeof(token_stack_t));
     while ((t = token_dequeue(&token_queue)) != NULL ) {
         if (t->token_type == DIGIT) {
-            token_stack_push(&token_stack, t);
+            token_pushstack(&token_stack, t);
         } else if (t->token_type == OP) {
-            token_t * right = token_stack_pop(&token_stack);
-            token_t * left = token_stack_pop(&token_stack);
+            token_t * right = token_popstack(&token_stack);
+            token_t * left = token_popstack(&token_stack);
             switch (t->lexeme[0]) {
                 case '+':
-                    token_stack_push(&token_stack, calc_add(left, right));
+                    token_pushstack(&token_stack, calc_add(left, right));
                     break;
                 case '-':
-                    token_stack_push(&token_stack, calc_minus(left, right));
+                    token_pushstack(&token_stack, calc_minus(left, right));
                     break;
                 case '*':
-                    token_stack_push(&token_stack, calc_mult(left, right));
+                    token_pushstack(&token_stack, calc_mult(left, right));
                     break;
                 case '/':
-                    token_stack_push(&token_stack, calc_div(left, right));
+                    token_pushstack(&token_stack, calc_div(left, right));
                     break;
                 case '%':
-                    token_stack_push(&token_stack, calc_remaind(left, right));
+                    token_pushstack(&token_stack, calc_remaind(left, right));
                     break;
                 case '^':
-                    token_stack_push(&token_stack, calc_power(left, right));
+                    token_pushstack(&token_stack, calc_power(left, right));
                     break;
             }
         }
@@ -332,7 +332,7 @@ void post_exp() {
 }
 
 void result() {
-    token_t * t = peek_token_stack(&token_stack);
+    token_t * t = token_peekstack(&token_stack);
     if (t != NULL) printf("%s\n", t->lexeme);
 }
 
@@ -349,8 +349,6 @@ void calc() {
         error();
     }
 }
-
-
 
 int main() {
     printf("Expression Evaluator 1.0\nBy YangJunbo(yangjunbo@360.cn) 12/22/23\n");
