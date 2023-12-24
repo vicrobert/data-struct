@@ -44,7 +44,6 @@ const int VALID_OP_LEN = 8;
 token_queue_t token_queue = {};
 token_stack_t token_stack = {};
 token_t cur_token = {};
-token_t pre_token = {};
 token_t bad_token = {"", BAD_TOKEN};
 
 char infix_expr[EXPR_LEN_MAX] = "";
@@ -53,7 +52,6 @@ int expr_pos = 0;
 void reset() {
     expr_pos = 0;
     memset(&cur_token, 0, sizeof(token_t));
-    memset(&pre_token, 0, sizeof(token_t));
     memset(&token_queue, 0, sizeof(token_queue_t));
     memset(&token_stack, 0, sizeof(token_stack_t));
 }
@@ -148,19 +146,18 @@ token_t * scan() {
     if (expr_pos == EXPR_LEN_MAX || cur_char == NULL) {
         return NULL;
     }
-    // Reserved current token to prevToken
-    memcpy(&pre_token, &cur_token, sizeof(token_t));
+
     // If OP then return
     if (OP == get_token_type(cur_char)) {
         if ((cur_char == '-' || cur_char == '+')) {
-            if (pre_token.token_type == NIL || !strcmp("(", pre_token.lexeme)) {
+            if (cur_token.token_type == NIL || !strcmp("(", cur_token.lexeme)) {
                 set_cur_token(&cur_token, "0", 1, DIGIT);
                 return &cur_token;
             }
-            if (!strcmp("+", pre_token.lexeme) || !strcmp("-", pre_token.lexeme)
-                || !strcmp("*", pre_token.lexeme) || !strcmp("/", pre_token.lexeme)
-                || !strcmp("%", pre_token.lexeme) || !strcmp("^", pre_token.lexeme)) {
-                sprintf(bad_token.lexeme, "Bad symbol at col %d", expr_pos + 1);
+            if (!strcmp("+", cur_token.lexeme) || !strcmp("-", cur_token.lexeme)
+                || !strcmp("*", cur_token.lexeme) || !strcmp("/", cur_token.lexeme)
+                || !strcmp("%", cur_token.lexeme) || !strcmp("^", cur_token.lexeme)) {
+                sprintf(bad_token.lexeme, "Bad symbol at pos %d", expr_pos + 1);
                 return &bad_token;
             }
         }
@@ -350,6 +347,23 @@ void calc() {
     }
 }
 
+void test() {
+    reset();
+    strcpy(infix_expr, "-(((1+4)^2+5)-(9)^(-1/2))");
+    calc();
+
+    reset();
+    strcpy(infix_expr, "(-1+3)/2-4.32-(-1)");
+    calc();
+
+    reset();
+    strcpy(infix_expr, "5*((-2+5)+21/3+((8-(-2))*2.5))");
+    calc();
+
+    reset();
+    strcpy(infix_expr, "0-(-1-2)+3*4");
+    calc();
+}
 int main() {
     printf("Expression Evaluator 1.0\nBy YangJunbo(yangjunbo@360.cn) 12/22/23\n");
     while (1) {
@@ -357,7 +371,10 @@ int main() {
         printf(">>>");
         scanf("%s", infix_expr);
         if (!strcmp("quit", infix_expr)) break;
-        printf("InfixExpress: %s\n", infix_expr);
+        if (!strcmp("test", infix_expr)) {
+            test();
+            continue;
+        }
         calc();
     }
 
