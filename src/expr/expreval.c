@@ -3,6 +3,7 @@
 //
 #include "expreval.h"
 #include "operator.h"
+#include "token.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -12,80 +13,40 @@ const char VALID_DIGIT[] = {
         '6', '7', '8', '9', '.'
 };
 
-const func_tbl_entry_t func_tbl[OP_TBL_SIZE] = {
-        {0, NULL}, //PADDING
-        {1, calc_add},
-        {2, calc_minus},
-        {3, calc_mult},
-        {4, calc_div},
-        {5, calc_remaind},
-        {6, NULL},
-        {7, NULL},
-        {8, calc_power},
+const func_tbl_entry_t op_func_tbl[FUNC_TBL_SIZE] = {
+        {OP_NULL, NULL}, //PADDING
+        {OP_ADD, calc_add},
+        {OP_MINUS, calc_minus},
+        {OP_MULT, calc_mult},
+        {OP_DIV, calc_div},
+        {OP_REMMAIND, calc_remaind},
+        {OP_LBRAC, NULL},
+        {OP_RBRAC, NULL},
+        {OP_POWER, calc_power},
         /** 9-20 reserved for extending **/
-        {9, NULL},
-        {10, NULL},
-        {11, NULL},
-        {12, NULL},
-        {13, NULL},
-        {14, NULL},
-        {15, NULL},
-        {16, NULL},
-        {17, NULL},
-        {18, NULL},
-        {19, NULL},
-        {20, NULL},
+        {OP_SIN, calc_sin},
+        {OP_COS, calc_cos},
+        {OP_TAN, calc_tan},
+        {OP_CTAN, calc_ctan},
         /** 9-20 end **/
-        {21, calc_sin},
-        {22, calc_cos},
-        {23, calc_tan},
-        {24, calc_ctan},
-        {25, calc_log}
-
+        {OP_NULL, NULL}, //PADDING
+        {OP_NULL, NULL}, //PADDING
+        {OP_NULL, NULL}, //PADDING
+        {OP_NULL, NULL}, //PADDING
+        {OP_NULL, NULL}, //PADDING
+        {OP_NULL, NULL}, //PADDING
+        {OP_NULL, NULL}, //PADDING
+        {OP_NULL, NULL}, //PADDING
+        {OP_LOG, calc_log}
 };
-
 
 token_queue_t token_queue = {};
 token_stack_t token_stack = {};
 token_t cur_token = {};
-token_t bad_token = {"", BAD_TOKEN};
+token_t bad_token = {.token_type = OP_NULL, .op_code = BAD_TOKEN};
 
 char infix_expr[EXPR_LEN_MAX] = "";
 int expr_pos = 0;
-
-op_tbl_entry_t op_code_tbl[OP_TBL_SIZE] = {};
-
-void init_op_code_tbl() {
-    // op code
-    op_code_tbl['+'].op_code = 1;
-    op_code_tbl['-'].op_code = 2;
-    op_code_tbl['*'].op_code = 3;
-    op_code_tbl['/'].op_code = 4;
-    op_code_tbl['%'].op_code = 5;
-    op_code_tbl['('].op_code = 6;
-    op_code_tbl[')'].op_code = 7;
-    op_code_tbl['^'].op_code = 8;
-    // prior
-    op_code_tbl['+'].prior = 1;
-    op_code_tbl['-'].prior = 1;
-    op_code_tbl['*'].prior = 2;
-    op_code_tbl['/'].prior = 2;
-    op_code_tbl['%'].prior = 2;
-    op_code_tbl['('].prior = 0;
-    op_code_tbl['^'].prior = 2;
-
-    //from pos 256 to start high-level function
-    op_code_tbl[256].op_code = 21;
-    op_code_tbl[257].op_code = 22;
-    op_code_tbl[258].op_code = 23;
-    op_code_tbl[259].op_code = 24;
-    op_code_tbl[260].op_code = 24;
-    strncpy(op_code_tbl[256].op_name, "sin", 3);
-    strncpy(op_code_tbl[257].op_name, "cos", 3);
-    strncpy(op_code_tbl[258].op_name, "tan", 3);
-    strncpy(op_code_tbl[259].op_name, "ctan", 4);
-    strncpy(op_code_tbl[260].op_name, "log", 3);
-}
 
 void reset() {
     expr_pos = 0;
@@ -135,7 +96,7 @@ token_type_t get_token_type(char ch) {
             return DIGIT;
         }
     }
-    if (op_code_tbl[ch].op_code != 0) {
+    if (op_token_tbl[ch].op_code != 0) {
         return OP;
     } else {
         return ALPHABET;
@@ -143,8 +104,8 @@ token_type_t get_token_type(char ch) {
 }
 
 int operator_prior_compare(char op1, char op2) {
-    return op_code_tbl[op1].prior > op_code_tbl[op2].prior ? 1
-        : (op_code_tbl[op1].prior == op_code_tbl[op2].prior ? 0 : -1);
+    return op_token_tbl[op1].op_prior > op_token_tbl[op2].op_prior ? 1
+        : (op_token_tbl[op1].op_prior == op_token_tbl[op2].op_prior ? 0 : -1);
 }
 
 token_t * scan() {
@@ -165,7 +126,7 @@ token_t * scan() {
     if (OP == get_token_type(cur_char)) {
         if ((cur_char == '-' || cur_char == '+')) {
             if (cur_token.token_type == NIL || !strcmp("(", cur_token.lexeme)) {
-                set_cur_token(&cur_token, "0", 1, DIGIT);
+                set_token(&cur_token, "0", 1, DIGIT, OP_NULL, 0, 0);
                 return &cur_token;
             }
             if (!strcmp("+", cur_token.lexeme) || !strcmp("-", cur_token.lexeme)
@@ -176,18 +137,37 @@ token_t * scan() {
             }
         }
         expr_pos ++;
-        set_cur_token(&cur_token, &cur_char, 1, OP);
+        token_t * mapped = map_op_token_tbl(&cur_char);
+        if (mapped == NULL) {
+            sprintf(bad_token.lexeme, "Unknown operator '%c' at pos %d", cur_char, expr_pos + 1);
+            return &bad_token;
+        }
+        set_token(&cur_token, mapped->lexeme, strlen(mapped->lexeme), OP,
+                  mapped->op_code, mapped->op_prior, mapped->value);
         return &cur_token;
     }
 
+    int alphabet = 0;
     expr_pre_pos = expr_pos;
-    do {
-        cur_char = infix_expr[++ expr_pos];
-    } while (expr_pos < EXPR_LEN_MAX
-        && cur_char != 0 && DIGIT == get_token_type(cur_char)
-        && (cur_char != ' ') && (cur_char != '\t') && (cur_char != '\n'));
+    cur_char = infix_expr[expr_pos];
 
-    set_cur_token(&cur_token, &infix_expr[expr_pre_pos], expr_pos - expr_pre_pos, DIGIT);
+    if (get_token_type(cur_char) == ALPHABET) {
+        alphabet = 1;
+        do {
+            cur_char = infix_expr[ ++ expr_pos];
+        } while (expr_pos < EXPR_LEN_MAX
+                 && cur_char != 0 && ALPHABET == get_token_type(cur_char)
+                 && (cur_char != ' ') && (cur_char != '\t') && (cur_char != '\n'));
+    } else {
+        do {
+            cur_char = infix_expr[++expr_pos];
+        } while (expr_pos < EXPR_LEN_MAX
+                 && cur_char != 0 && DIGIT == get_token_type(cur_char)
+                 && (cur_char != ' ') && (cur_char != '\t') && (cur_char != '\n'));
+    }
+    set_token(&cur_token, &infix_expr[expr_pre_pos], expr_pos - expr_pre_pos,
+                  alphabet == 1 ? ALPHABET : DIGIT, OP_NULL, 0, 0);
+
     return &cur_token;
 }
 
@@ -224,6 +204,12 @@ int parse(int sp_bottom) {
                 }
                 token_pushstack(&token_stack, &cur_token);
             }
+        } else if (ALPHABET == cur_token.token_type) {
+            token_t * mapped = map_op_token_tbl(cur_token.lexeme);
+            if (mapped != NULL) {
+                parse(token_stack.top);
+                token_pushstack(&token_stack, mapped);
+            }
         }
     }
     //deal remains
@@ -242,7 +228,7 @@ int do_calc() {
         } else if (t->token_type == OP) {
             token_t * right = token_popstack(&token_stack);
             token_t * left = token_popstack(&token_stack);
-            op_func_t * op_func = func_tbl[op_code_tbl[t->lexeme[0]].op_code].op_func;
+            op_func_t * op_func = op_func_tbl[t->op_code].op_func;
             if (op_func != NULL) {
                 token_pushstack(&token_stack, op_func(&cur_token, left, right));
             } else {
@@ -299,7 +285,7 @@ void test() {
     calc();
 }
 int main() {
-    init_op_code_tbl();
+    init_op_token_tbl();
     printf("Expression Evaluator 1.0\nBy YangJunbo(yangjunbo@360.cn) 12/22/23\n");
     while (1) {
         reset();

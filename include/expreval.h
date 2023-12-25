@@ -12,14 +12,36 @@ enum _token_type {
     DIGIT = 1,
     ALPHABET = 2,
     OP = 3,
-    FUNC = 4,
     BAD_TOKEN = 1000
 };
 typedef enum _token_type token_type_t;
 
+enum _op_code {
+    OP_NULL = 0,
+    OP_ADD = 1,
+    OP_MINUS = 2,
+    OP_MULT = 3,
+    OP_DIV = 4,
+    OP_REMMAIND = 5,
+    OP_LBRAC = 6,
+    OP_RBRAC = 7,
+    OP_POWER = 8,
+    OP_SIN = 9,
+    OP_COS = 10,
+    OP_TAN = 11,
+    OP_CTAN = 12,
+    /** 13-19 are reserved for extending **/
+    OP_LOG = 20
+};
+typedef enum _op_code op_code_t;
+
+#define OP_LEX_MAXLEN 8
 struct _token {
-    char lexeme[EXPR_LEN_MAX];
     token_type_t token_type;
+    op_code_t op_code;
+    int op_prior;
+    double value;
+    char lexeme[OP_LEX_MAXLEN];
 };
 typedef struct _token token_t;
 
@@ -36,24 +58,12 @@ struct _token_stack {
 };
 typedef struct _token_stack token_stack_t;
 
-#define OP_TBL_SIZE 512
-#define FUNC_NAME_MAXLEN 8
-struct _op_tbl_entry {
-    char op_name[FUNC_NAME_MAXLEN];
-    char op_code;
-    char prior;
-};
-typedef struct _op_tbl_entry op_tbl_entry_t;
-
+#define FUNC_TBL_SIZE 100
 typedef token_t * (op_func_t)(token_t *, token_t *, token_t *);
-
 struct _func_tbl_entry {
-    int code;
+    op_code_t op_code;
     op_func_t * op_func;
 };
 typedef struct _func_tbl_entry func_tbl_entry_t;
-
-
-void set_cur_token(token_t * token, const char * lex, int lex_len, token_type_t token_type);
 
 #endif //DATA_STRUCT_EXPEVAL_H
