@@ -45,6 +45,12 @@ struct _func_tbl_entry {
 };
 typedef struct _func_tbl_entry func_tbl_entry_t;
 
+struct _op_tbl_entry {
+    char op_code;
+    char prior;
+};
+typedef struct _op_tbl_entry op_tbl_entry_t;
+
 void set_cur_token(token_t * token, const char * lex, int lex_len, token_type_t token_type);
 
 #endif //DATA_STRUCT_EXPEVAL_H

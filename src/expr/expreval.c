@@ -37,16 +37,27 @@ token_t bad_token = {"", BAD_TOKEN};
 char infix_expr[EXPR_LEN_MAX] = "";
 int expr_pos = 0;
 
-char op_code_tbl[256] = {};
+#define OP_TBL_LEN 256
+op_tbl_entry_t op_code_tbl[OP_TBL_LEN] = {};
+
 void init_op_code_tbl() {
-    op_code_tbl['+'] = 1;
-    op_code_tbl['-'] = 2;
-    op_code_tbl['*'] = 3;
-    op_code_tbl['/'] = 4;
-    op_code_tbl['%'] = 5;
-    op_code_tbl['('] = 6;
-    op_code_tbl[')'] = 7;
-    op_code_tbl['^'] = 8;
+    op_code_tbl['+'].op_code = 1;
+    op_code_tbl['-'].op_code = 2;
+    op_code_tbl['*'].op_code = 3;
+    op_code_tbl['/'].op_code = 4;
+    op_code_tbl['%'].op_code = 5;
+    op_code_tbl['('].op_code = 6;
+    op_code_tbl[')'].op_code = 7;
+    op_code_tbl['^'].op_code = 8;
+
+
+    op_code_tbl['+'].prior = 1;
+    op_code_tbl['-'].prior = 1;
+    op_code_tbl['*'].prior = 2;
+    op_code_tbl['/'].prior = 2;
+    op_code_tbl['%'].prior = 2;
+    op_code_tbl['('].prior = 0;
+    op_code_tbl['^'].prior = 2;
 }
 
 void reset() {
@@ -97,7 +108,7 @@ token_type_t get_token_type(char ch) {
             return DIGIT;
         }
     }
-    if (op_code_tbl[ch] != 0) {
+    if (op_code_tbl[ch].op_code != 0) {
         return OP;
     } else {
         return ALPHABET;
@@ -110,14 +121,14 @@ int operator_prior(char op) {
         case '/':
         case '%':
         case '^':
-            return 2;
+            return 3;
         case '+':
         case '-':
-            return 1;
+            return 2;
         case '(':
-            return 0;
+            return 1;
         default:
-            return -1;
+            return 0;
     }
 }
 
@@ -221,7 +232,7 @@ int do_calc() {
         } else if (t->token_type == OP) {
             token_t * right = token_popstack(&token_stack);
             token_t * left = token_popstack(&token_stack);
-            op_func_t * op_func = func_tbl[op_code_tbl[t->lexeme[0]]].op_func;
+            op_func_t * op_func = func_tbl[op_code_tbl[t->lexeme[0]].op_code].op_func;
             if (op_func != NULL) {
                 token_pushstack(&token_stack, op_func(&cur_token, left, right));
             } else {
