@@ -1,45 +1,33 @@
 //
 // Created by 杨钧博 on 2023/12/22.
 //
+#include "expreval.h"
+#include "operator.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
-#define EXPR_LEN_MAX    1024
-
-enum _token_type {
-    NIL = 0,
-    DIGIT = 1,
-    ALPHABET = 2,
-    OP = 3,
-    BAD_TOKEN = 1000
+const char VALID_DIGIT[] = {
+        '0', '1', '2', '3', '4', '5',
+        '6', '7', '8', '9', '.'
 };
-typedef enum _token_type token_type_t;
 
-struct _token {
-    char lexeme[EXPR_LEN_MAX];
-    token_type_t token_type;
+#define FUNC_TBL_LEN 9
+const func_tbl_entry_t func_tbl[FUNC_TBL_LEN] = {
+        {0, NULL}, //PADDING
+        {1, calc_add},
+        {2, calc_minus},
+        {3, calc_mult},
+        {4, calc_div},
+        {5, calc_remaind},
+        {6, NULL},
+        {7, NULL},
+        {8, calc_power}
 };
-typedef struct _token token_t;
 
-struct _token_queue {
-    token_t queue[EXPR_LEN_MAX];
-    int head;
-    int tail;
+const char * VALID_FUNC[] = {
+        "sin", "cos", "tan", "ctan", "log"
 };
-typedef struct _token_queue token_queue_t;
-
-struct _token_stack {
-    token_t stack[EXPR_LEN_MAX];
-    int top;
-};
-typedef struct _token_stack token_stack_t;
-
-const char VALID_DIGIT[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.'};
-const char VALID_OP[] = {'+', '-', '*', '/', '%', '(', ')', '^'};
 const int VALID_DIGIT_LEN = 11;
-const int VALID_OP_LEN = 8;
 
 token_queue_t token_queue = {};
 token_stack_t token_stack = {};
@@ -49,17 +37,23 @@ token_t bad_token = {"", BAD_TOKEN};
 char infix_expr[EXPR_LEN_MAX] = "";
 int expr_pos = 0;
 
+char op_code_tbl[256] = {};
+void init_op_code_tbl() {
+    op_code_tbl['+'] = 1;
+    op_code_tbl['-'] = 2;
+    op_code_tbl['*'] = 3;
+    op_code_tbl['/'] = 4;
+    op_code_tbl['%'] = 5;
+    op_code_tbl['('] = 6;
+    op_code_tbl[')'] = 7;
+    op_code_tbl['^'] = 8;
+}
+
 void reset() {
     expr_pos = 0;
     memset(&cur_token, 0, sizeof(token_t));
     memset(&token_queue, 0, sizeof(token_queue_t));
     memset(&token_stack, 0, sizeof(token_stack_t));
-}
-
-void set_cur_token(token_t * token, const char * lex, int lex_len, token_type_t token_type) {
-    memset(token, 0, sizeof(token_t));
-    strncpy(token->lexeme, lex, lex_len);
-    token->token_type = token_type;
 }
 
 void token_enqueue(token_queue_t * q, token_t * t) {
@@ -103,12 +97,11 @@ token_type_t get_token_type(char ch) {
             return DIGIT;
         }
     }
-    for (i = 0; i < VALID_OP_LEN; i ++) {
-        if (ch == VALID_OP[i]) {
-            return OP;
-        }
+    if (op_code_tbl[ch] != 0) {
+        return OP;
+    } else {
+        return ALPHABET;
     }
-    return ALPHABET;
 }
 
 int operator_prior(char op) {
@@ -177,7 +170,7 @@ token_t * scan() {
     return &cur_token;
 }
 
-int parse() {
+int parse(int stack_top) {
     token_t * s;
     while ((s = scan()) != NULL) {
         token_t *top;
@@ -212,82 +205,14 @@ int parse() {
             }
         }
     }
-    //Deal remains
-    while (!is_stack_empty(&token_stack)) {
+    //deal remains
+    while (/* !is_stack_empty(&token_stack) */ token_stack.top > stack_top) {
         token_enqueue(&token_queue, token_popstack(&token_stack));
     }
     return 0;
 }
 
-token_t * calc_add(token_t * left, token_t * right) {
-    char sum_str[EXPR_LEN_MAX] = {0};
-    double left_num = strtod(left->lexeme, NULL);
-    double right_num = strtod(right->lexeme, NULL);
-    double sum = left_num + right_num;
-    sprintf(sum_str, "%f", sum);
-    set_cur_token(&cur_token, sum_str, strlen(sum_str), DIGIT);
-    return &cur_token;
-}
-
-token_t * calc_minus(token_t * left, token_t * right) {
-    char minus_str[EXPR_LEN_MAX] = {0};
-    double left_num = strtod(left->lexeme, NULL);
-    double right_num = strtod(right->lexeme, NULL);
-    double minus = left_num - right_num;
-    sprintf(minus_str, "%f", minus);
-    set_cur_token(&cur_token, minus_str, strlen(minus_str), DIGIT);
-    return &cur_token;
-}
-
-token_t * calc_mult(token_t * left, token_t * right) {
-    char mult_str[EXPR_LEN_MAX] = {0};
-    double left_num = strtod(left->lexeme, NULL);
-    double right_num = strtod(right->lexeme, NULL);
-    double mult = left_num * right_num;
-    sprintf(mult_str, "%f", mult);
-    set_cur_token(&cur_token, mult_str, strlen(mult_str), DIGIT);
-    return &cur_token;
-}
-
-token_t * calc_div(token_t * left, token_t * right) {
-    char div_str[EXPR_LEN_MAX] = {0};
-    double left_num = strtod(left->lexeme, NULL);
-    double right_num = strtod(right->lexeme, NULL);
-    double div = left_num / right_num;
-    sprintf(div_str, "%f", div);
-    set_cur_token(&cur_token, div_str, strlen(div_str), DIGIT);
-    return &cur_token;
-}
-
-token_t * calc_remaind(token_t * left, token_t * right) {
-    char remaind_str[EXPR_LEN_MAX] = {0};
-    double left_num = strtod(left->lexeme, NULL);
-    double right_num = strtod(right->lexeme, NULL);
-    double remaind = fmod(left_num, right_num);
-    sprintf(remaind_str, "%f", remaind);
-    set_cur_token(&cur_token, remaind_str, strlen(remaind_str), DIGIT);
-    return &cur_token;
-}
-
-token_t * calc_power(token_t * left, token_t * right) {
-    char res_str[EXPR_LEN_MAX] = {0};
-    double left_num = strtod(left->lexeme, NULL);
-    double right_num = strtod(right->lexeme, NULL);
-    double res = pow(left_num, right_num);
-    sprintf(res_str, "%f", res);
-    set_cur_token(&cur_token, res_str, strlen(res_str), DIGIT);
-    return &cur_token;
-}
-
-token_t * calc_oppos(token_t * origin) {
-    char oppos_str[EXPR_LEN_MAX] = {0};
-    double origin_num = strtod(origin->lexeme, NULL);
-    sprintf(oppos_str, "%f", - origin_num);
-    set_cur_token(&cur_token, oppos_str, strlen(oppos_str), DIGIT);
-    return &cur_token;
-}
-
-void do_calc() {
+int do_calc() {
     token_t * t;
     memset(&token_stack, 0, sizeof(token_stack_t));
     while ((t = token_dequeue(&token_queue)) != NULL ) {
@@ -296,28 +221,16 @@ void do_calc() {
         } else if (t->token_type == OP) {
             token_t * right = token_popstack(&token_stack);
             token_t * left = token_popstack(&token_stack);
-            switch (t->lexeme[0]) {
-                case '+':
-                    token_pushstack(&token_stack, calc_add(left, right));
-                    break;
-                case '-':
-                    token_pushstack(&token_stack, calc_minus(left, right));
-                    break;
-                case '*':
-                    token_pushstack(&token_stack, calc_mult(left, right));
-                    break;
-                case '/':
-                    token_pushstack(&token_stack, calc_div(left, right));
-                    break;
-                case '%':
-                    token_pushstack(&token_stack, calc_remaind(left, right));
-                    break;
-                case '^':
-                    token_pushstack(&token_stack, calc_power(left, right));
-                    break;
+            op_func_t * op_func = func_tbl[op_code_tbl[t->lexeme[0]]].op_func;
+            if (op_func != NULL) {
+                token_pushstack(&token_stack, op_func(&cur_token, left, right));
+            } else {
+                sprintf(bad_token.lexeme, "Unknown operator '%c'", t->lexeme[0]);
+                return 1;
             }
         }
     }
+    return 0;
 }
 
 void post_exp() {
@@ -338,7 +251,7 @@ void error() {
 }
 
 void calc() {
-    if (!parse()) {
+    if (!parse(0)) {
         post_exp();
         do_calc();
         result();
@@ -365,6 +278,7 @@ void test() {
     calc();
 }
 int main() {
+    init_op_code_tbl();
     printf("Expression Evaluator 1.0\nBy YangJunbo(yangjunbo@360.cn) 12/22/23\n");
     while (1) {
         reset();

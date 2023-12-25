@@ -8,4 +8,6 @@ include_directories(include)
 add_executable(data_struct
         include/list.h
         src/topo/toposort.c
-        src/expr/suffixexpr.c)
+        src/expr/expreval.c
+        src/expr/operator.c
+        src/expr/token.c)
