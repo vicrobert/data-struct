@@ -14,4 +14,10 @@ token_t * calc_div(token_t * dst, token_t * op1, token_t * op2);
 token_t * calc_remaind(token_t * dst, token_t * op1, token_t * op2);
 token_t * calc_power(token_t * dst, token_t * op1, token_t * op2);
 
+token_t * calc_sin(token_t * dst, token_t * op1, token_t * op2);
+token_t * calc_cos(token_t * dst, token_t * op1, token_t * op2);
+token_t * calc_tan(token_t * dst, token_t * op1, token_t * op2);
+token_t * calc_ctan(token_t * dst, token_t * op1, token_t * op2);
+token_t * calc_log(token_t * dst, token_t * op1, token_t * op2);
+
 #endif //DATA_STRUCT_OPERATOR_H

@@ -6,7 +6,6 @@
 #define DATA_STRUCT_EXPEVAL_H
 
 #define EXPR_LEN_MAX    1024
-#define FUNC_NAME_LEN_MAX   16
 
 enum _token_type {
     NIL = 0,
@@ -37,19 +36,23 @@ struct _token_stack {
 };
 typedef struct _token_stack token_stack_t;
 
-typedef token_t * (op_func_t)(token_t *, token_t *, token_t *);
-
-struct _func_tbl_entry {
-    int symbol_code;
-    op_func_t * op_func;
-};
-typedef struct _func_tbl_entry func_tbl_entry_t;
-
+#define OP_TBL_SIZE 512
+#define FUNC_NAME_MAXLEN 8
 struct _op_tbl_entry {
+    char op_name[FUNC_NAME_MAXLEN];
     char op_code;
     char prior;
 };
 typedef struct _op_tbl_entry op_tbl_entry_t;
+
+typedef token_t * (op_func_t)(token_t *, token_t *, token_t *);
+
+struct _func_tbl_entry {
+    int code;
+    op_func_t * op_func;
+};
+typedef struct _func_tbl_entry func_tbl_entry_t;
+
 
 void set_cur_token(token_t * token, const char * lex, int lex_len, token_type_t token_type);
 

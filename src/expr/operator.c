@@ -77,3 +77,55 @@ token_t * calc_oppos(token_t * dst, token_t * op1, token_t * op2) {
     set_cur_token(dst, oppos_str, strlen(oppos_str), DIGIT);
     return dst;
 }
+
+// 三角函数
+token_t * calc_sin(token_t * dst, token_t * op1, token_t * op2) {
+    UNUSED(op2);
+    char sin_str[EXPR_LEN_MAX] = {0};
+    double op1_num = strtod(op1->lexeme, NULL);
+    double sin_num = sin(op1_num);
+    sprintf(sin_str, "%f", sin_num);
+    set_cur_token(dst, sin_str, strlen(sin_str), DIGIT);
+    return dst;
+}
+
+token_t * calc_cos(token_t * dst, token_t * op1, token_t * op2) {
+    UNUSED(op2);
+    char cos_str[EXPR_LEN_MAX] = {0};
+    double op1_num = strtod(op1->lexeme, NULL);
+    double cos_num = cos(op1_num);
+    sprintf(cos_str, "%f", cos_num);
+    set_cur_token(dst, cos_str, strlen(cos_str), DIGIT);
+    return dst;
+}
+
+token_t * calc_tan(token_t * dst, token_t * op1, token_t * op2) {
+    UNUSED(op2);
+    char tan_str[EXPR_LEN_MAX] = {0};
+    double op1_num = strtod(op1->lexeme, NULL);
+    double tan_num = sin(op1_num);
+    sprintf(tan_str, "%f", tan_num);
+    set_cur_token(dst, tan_str, strlen(tan_str), DIGIT);
+    return dst;
+}
+
+token_t * calc_ctan(token_t * dst, token_t * op1, token_t * op2) {
+    UNUSED(op2);
+    char ctan_str[EXPR_LEN_MAX] = {0};
+    double op1_num = strtod(op1->lexeme, NULL);
+    double ctan_num = 1.0 / tan(op1_num);
+    sprintf(ctan_str, "%f", ctan_num);
+    set_cur_token(dst, ctan_str, strlen(ctan_str), DIGIT);
+    return dst;
+}
+
+// 对数
+token_t * calc_log(token_t * dst, token_t * op1, token_t * op2) {
+    UNUSED(op2);
+    char log_str[EXPR_LEN_MAX] = {0};
+    double op1_num = strtod(op1->lexeme, NULL);
+    double log_num = sin(op1_num);
+    sprintf(log_str, "%f", log_num);
+    set_cur_token(dst, log_str, strlen(log_str), DIGIT);
+    return dst;
+}

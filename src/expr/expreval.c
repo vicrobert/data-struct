@@ -6,13 +6,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#define VALID_DIGIT_LEN 11
 const char VALID_DIGIT[] = {
         '0', '1', '2', '3', '4', '5',
         '6', '7', '8', '9', '.'
 };
 
-#define FUNC_TBL_SIZE 9
-const func_tbl_entry_t func_tbl[FUNC_TBL_SIZE] = {
+const func_tbl_entry_t func_tbl[OP_TBL_SIZE] = {
         {0, NULL}, //PADDING
         {1, calc_add},
         {2, calc_minus},
@@ -21,13 +21,29 @@ const func_tbl_entry_t func_tbl[FUNC_TBL_SIZE] = {
         {5, calc_remaind},
         {6, NULL},
         {7, NULL},
-        {8, calc_power}
+        {8, calc_power},
+        /** 9-20 reserved for extending **/
+        {9, NULL},
+        {10, NULL},
+        {11, NULL},
+        {12, NULL},
+        {13, NULL},
+        {14, NULL},
+        {15, NULL},
+        {16, NULL},
+        {17, NULL},
+        {18, NULL},
+        {19, NULL},
+        {20, NULL},
+        /** 9-20 end **/
+        {21, calc_sin},
+        {22, calc_cos},
+        {23, calc_tan},
+        {24, calc_ctan},
+        {25, calc_log}
+
 };
 
-const char * VALID_FUNC[] = {
-        "sin", "cos", "tan", "ctan", "log"
-};
-const int VALID_DIGIT_LEN = 11;
 
 token_queue_t token_queue = {};
 token_stack_t token_stack = {};
@@ -37,7 +53,6 @@ token_t bad_token = {"", BAD_TOKEN};
 char infix_expr[EXPR_LEN_MAX] = "";
 int expr_pos = 0;
 
-#define OP_TBL_SIZE 256
 op_tbl_entry_t op_code_tbl[OP_TBL_SIZE] = {};
 
 void init_op_code_tbl() {
@@ -58,6 +73,18 @@ void init_op_code_tbl() {
     op_code_tbl['%'].prior = 2;
     op_code_tbl['('].prior = 0;
     op_code_tbl['^'].prior = 2;
+
+    //from pos 256 to start high-level function
+    op_code_tbl[256].op_code = 21;
+    op_code_tbl[257].op_code = 22;
+    op_code_tbl[258].op_code = 23;
+    op_code_tbl[259].op_code = 24;
+    op_code_tbl[260].op_code = 24;
+    strncpy(op_code_tbl[256].op_name, "sin", 3);
+    strncpy(op_code_tbl[257].op_name, "cos", 3);
+    strncpy(op_code_tbl[258].op_name, "tan", 3);
+    strncpy(op_code_tbl[259].op_name, "ctan", 4);
+    strncpy(op_code_tbl[260].op_name, "log", 3);
 }
 
 void reset() {
