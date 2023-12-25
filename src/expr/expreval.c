@@ -11,8 +11,8 @@ const char VALID_DIGIT[] = {
         '6', '7', '8', '9', '.'
 };
 
-#define FUNC_TBL_LEN 9
-const func_tbl_entry_t func_tbl[FUNC_TBL_LEN] = {
+#define FUNC_TBL_SIZE 9
+const func_tbl_entry_t func_tbl[FUNC_TBL_SIZE] = {
         {0, NULL}, //PADDING
         {1, calc_add},
         {2, calc_minus},
@@ -37,10 +37,11 @@ token_t bad_token = {"", BAD_TOKEN};
 char infix_expr[EXPR_LEN_MAX] = "";
 int expr_pos = 0;
 
-#define OP_TBL_LEN 256
-op_tbl_entry_t op_code_tbl[OP_TBL_LEN] = {};
+#define OP_TBL_SIZE 256
+op_tbl_entry_t op_code_tbl[OP_TBL_SIZE] = {};
 
 void init_op_code_tbl() {
+    // op code
     op_code_tbl['+'].op_code = 1;
     op_code_tbl['-'].op_code = 2;
     op_code_tbl['*'].op_code = 3;
@@ -49,8 +50,7 @@ void init_op_code_tbl() {
     op_code_tbl['('].op_code = 6;
     op_code_tbl[')'].op_code = 7;
     op_code_tbl['^'].op_code = 8;
-
-
+    // prior
     op_code_tbl['+'].prior = 1;
     op_code_tbl['-'].prior = 1;
     op_code_tbl['*'].prior = 2;
@@ -115,26 +115,9 @@ token_type_t get_token_type(char ch) {
     }
 }
 
-int operator_prior(char op) {
-    switch (op) {
-        case '*':
-        case '/':
-        case '%':
-        case '^':
-            return 3;
-        case '+':
-        case '-':
-            return 2;
-        case '(':
-            return 1;
-        default:
-            return 0;
-    }
-}
-
 int operator_prior_compare(char op1, char op2) {
-    return operator_prior(op1) > operator_prior(op2) ? 1
-        : (operator_prior(op1) == operator_prior(op2) ? 0 : -1);
+    return op_code_tbl[op1].prior > op_code_tbl[op2].prior ? 1
+        : (op_code_tbl[op1].prior == op_code_tbl[op2].prior ? 0 : -1);
 }
 
 token_t * scan() {
@@ -181,7 +164,7 @@ token_t * scan() {
     return &cur_token;
 }
 
-int parse(int stack_top) {
+int parse(int sp_bottom) {
     token_t * s;
     while ((s = scan()) != NULL) {
         token_t *top;
@@ -194,7 +177,7 @@ int parse(int stack_top) {
             if (!strcmp("(", cur_token.lexeme)) {
                 token_pushstack(&token_stack, &cur_token);
             } else if (!strcmp(")", cur_token.lexeme)) {
-                while (!is_stack_empty(&token_stack)) {
+                while (token_stack.top > sp_bottom) {
                     top = token_popstack(&token_stack);
                     if (!strcmp("(", top->lexeme)) {
                         break;
@@ -202,7 +185,7 @@ int parse(int stack_top) {
                     token_enqueue(&token_queue, top);
                 }
             } else {
-                while (!is_stack_empty(&token_stack)) {
+                while (token_stack.top > sp_bottom) {
                     top = token_peekstack(&token_stack);
                     if (operator_prior_compare(top->lexeme[0],
                                              cur_token.lexeme[0]) >= 0) {
@@ -217,7 +200,7 @@ int parse(int stack_top) {
         }
     }
     //deal remains
-    while (/* !is_stack_empty(&token_stack) */ token_stack.top > stack_top) {
+    while (/* !is_stack_empty(&token_stack) */ token_stack.top > sp_bottom) {
         token_enqueue(&token_queue, token_popstack(&token_stack));
     }
     return 0;
