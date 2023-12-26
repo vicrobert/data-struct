@@ -10,4 +10,6 @@ add_executable(data_struct
         src/topo/toposort.c
         src/expr/expreval.c
         src/expr/operator.c
-        src/expr/token.c)
+        src/expr/token.c
+        src/expr/result.c
+)

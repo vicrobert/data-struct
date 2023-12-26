@@ -4,7 +4,9 @@
 #include "expreval.h"
 #include "operator.h"
 #include "token.h"
+#include "result.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define VALID_DIGIT_LEN 11
@@ -123,10 +125,10 @@ token_t * scan() {
     }
 
     // If OP then return
-    if (OP == get_token_type(cur_char)) {
+    if (get_token_type(cur_char) & OP) {
         if ((cur_char == '-' || cur_char == '+')) {
             if (cur_token.token_type == NIL || !strcmp("(", cur_token.lexeme)) {
-                set_token(&cur_token, "0", 1, DIGIT, OP_NULL, 0, 0);
+                set_token(&cur_token, "0", 1, DIGIT, OP_NULL, 0);
                 return &cur_token;
             }
             if (!strcmp("+", cur_token.lexeme) || !strcmp("-", cur_token.lexeme)
@@ -142,57 +144,74 @@ token_t * scan() {
             sprintf(bad_token.lexeme, "Unknown operator '%c' at pos %d", cur_char, expr_pos + 1);
             return &bad_token;
         }
-        set_token(&cur_token, mapped->lexeme, strlen(mapped->lexeme), OP,
-                  mapped->op_code, mapped->op_prior, mapped->value);
+        set_token(&cur_token, mapped->lexeme, strlen(mapped->lexeme), mapped->token_type,
+                  mapped->op_code, mapped->op_prior);
         return &cur_token;
     }
 
-    int alphabet = 0;
     expr_pre_pos = expr_pos;
     cur_char = infix_expr[expr_pos];
 
     if (get_token_type(cur_char) == ALPHABET) {
-        alphabet = 1;
         do {
             cur_char = infix_expr[ ++ expr_pos];
         } while (expr_pos < EXPR_LEN_MAX
                  && cur_char != 0 && ALPHABET == get_token_type(cur_char)
                  && (cur_char != ' ') && (cur_char != '\t') && (cur_char != '\n'));
+
+        set_token(&cur_token, &infix_expr[expr_pre_pos], expr_pos - expr_pre_pos,
+                  ALPHABET, OP_NULL, 0);
     } else {
         do {
             cur_char = infix_expr[++expr_pos];
         } while (expr_pos < EXPR_LEN_MAX
                  && cur_char != 0 && DIGIT == get_token_type(cur_char)
                  && (cur_char != ' ') && (cur_char != '\t') && (cur_char != '\n'));
+
+        set_token(&cur_token, &infix_expr[expr_pre_pos], expr_pos - expr_pre_pos,
+                  DIGIT, OP_NULL, 0);
     }
-    set_token(&cur_token, &infix_expr[expr_pre_pos], expr_pos - expr_pre_pos,
-                  alphabet == 1 ? ALPHABET : DIGIT, OP_NULL, 0, 0);
 
     return &cur_token;
 }
 
-int parse(int sp_bottom) {
+result_t * parse(int nest) {
     token_t * s;
+    int lbrac_cnt = 0;
+    int sp_btm = token_stack.top;
+    if (nest) {
+        s = scan();
+        if (s->op_code != OP_LBRAC) {
+            return error(1);
+        }
+        token_pushstack(&token_stack, &cur_token);
+        lbrac_cnt ++;
+    }
     while ((s = scan()) != NULL) {
         token_t *top;
         if (s->token_type == BAD_TOKEN) {
-            return 1;
+            return error(1);
         }
-        if (DIGIT == cur_token.token_type) {
+        if (cur_token.token_type == DIGIT) {
             token_enqueue(&token_queue, &cur_token);
-        } else if (OP == cur_token.token_type) {
+        } else if (cur_token.token_type & OP) {
             if (!strcmp("(", cur_token.lexeme)) {
                 token_pushstack(&token_stack, &cur_token);
+                lbrac_cnt ++;
             } else if (!strcmp(")", cur_token.lexeme)) {
-                while (token_stack.top > sp_bottom) {
+                while (token_stack.top > sp_btm) {
                     top = token_popstack(&token_stack);
                     if (!strcmp("(", top->lexeme)) {
                         break;
                     }
                     token_enqueue(&token_queue, top);
                 }
+                lbrac_cnt --;
+                if (nest && lbrac_cnt == 0) {
+                    return success();
+                }
             } else {
-                while (token_stack.top > sp_bottom) {
+                while (token_stack.top > sp_btm) {
                     top = token_peekstack(&token_stack);
                     if (operator_prior_compare(top->lexeme[0],
                                              cur_token.lexeme[0]) >= 0) {
@@ -207,16 +226,18 @@ int parse(int sp_bottom) {
         } else if (ALPHABET == cur_token.token_type) {
             token_t * mapped = map_op_token_tbl(cur_token.lexeme);
             if (mapped != NULL) {
-                parse(token_stack.top);
                 token_pushstack(&token_stack, mapped);
+                parse(1);
+                token_enqueue(&token_queue, token_popstack(&token_stack));
             }
         }
     }
+
     //deal remains
-    while (/* !is_stack_empty(&token_stack) */ token_stack.top > sp_bottom) {
+    while (/* !is_stack_empty(&token_stack) */ token_stack.top > sp_btm) {
         token_enqueue(&token_queue, token_popstack(&token_stack));
     }
-    return 0;
+    return success();
 }
 
 int do_calc() {
@@ -225,12 +246,17 @@ int do_calc() {
     while ((t = token_dequeue(&token_queue)) != NULL ) {
         if (t->token_type == DIGIT) {
             token_pushstack(&token_stack, t);
-        } else if (t->token_type == OP) {
-            token_t * right = token_popstack(&token_stack);
-            token_t * left = token_popstack(&token_stack);
+        } else if (t->token_type & OP) {
             op_func_t * op_func = op_func_tbl[t->op_code].op_func;
             if (op_func != NULL) {
-                token_pushstack(&token_stack, op_func(&cur_token, left, right));
+                if (t->token_type == BIN_OP) {
+                    token_t *right = token_popstack(&token_stack);
+                    token_t *left = token_popstack(&token_stack);
+                    token_pushstack(&token_stack, op_func(&cur_token, left, right));
+                } else if (t->token_type == UN_OP) {
+                    token_t *left = token_popstack(&token_stack);
+                    token_pushstack(&token_stack, op_func(&cur_token, left, NULL));
+                }
             } else {
                 sprintf(bad_token.lexeme, "Unknown operator '%c'", t->lexeme[0]);
                 return 1;
@@ -253,17 +279,13 @@ void result() {
     if (t != NULL) printf("%s\n", t->lexeme);
 }
 
-void error() {
-    printf("ERROR: %s\n", bad_token.lexeme);
-}
-
 void calc() {
-    if (!parse(0)) {
+    if (parse(0)->code == 0) {
         post_exp();
         do_calc();
         result();
     } else {
-        error();
+        error(1);
     }
 }
 

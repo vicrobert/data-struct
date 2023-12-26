@@ -9,9 +9,13 @@
 
 enum _token_type {
     NIL = 0,
-    DIGIT = 1,
-    ALPHABET = 2,
-    OP = 3,
+    UN_OP = 1,
+    BIN_OP = 2,
+    TER_OP = 4,
+    OP = 7,
+    DIGIT = 8,
+    ALPHABET = 16,
+    // according to the order of sequence 24,32,40,48,...,992
     BAD_TOKEN = 1000
 };
 typedef enum _token_type token_type_t;
@@ -35,7 +39,7 @@ enum _op_code {
 };
 typedef enum _op_code op_code_t;
 
-#define OP_LEX_MAXLEN 8
+#define OP_LEX_MAXLEN 64
 struct _token {
     token_type_t token_type;
     op_code_t op_code;
