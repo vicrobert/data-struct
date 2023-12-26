@@ -45,7 +45,6 @@ const func_tbl_entry_t op_func_tbl[FUNC_TBL_SIZE] = {
 token_queue_t token_queue = {};
 token_stack_t token_stack = {};
 token_t cur_token = {};
-token_t bad_token = {.token_type = OP_NULL, .op_code = BAD_TOKEN};
 
 char infix_expr[EXPR_LEN_MAX] = "";
 int expr_pos = 0;
@@ -134,15 +133,13 @@ result_t * scan() {
             if (!strcmp("+", cur_token.lexeme) || !strcmp("-", cur_token.lexeme)
                 || !strcmp("*", cur_token.lexeme) || !strcmp("/", cur_token.lexeme)
                 || !strcmp("%", cur_token.lexeme) || !strcmp("^", cur_token.lexeme)) {
-                sprintf(bad_token.lexeme, "Bad symbol at pos %d", expr_pos + 1);
-                return error(SYNTAX_ERR, &bad_token);
+                return error_seq(UNREC_SYMBOL_ERR, cur_token.lexeme, expr_pos + 1);
             }
         }
         expr_pos ++;
         token_t * mapped = map_op_token_tbl(&cur_char);
         if (mapped == NULL) {
-            sprintf(bad_token.lexeme, "Unrecognizable operator '%c' at pos %d", cur_char, expr_pos + 1);
-            return error(SYNTAX_ERR, &bad_token);
+            return error_ch(UNREC_SYMBOL_ERR, cur_char, expr_pos + 1);
         }
         set_token(&cur_token, mapped->lexeme, strlen(mapped->lexeme), mapped->token_type,
                   mapped->op_code, mapped->op_prior);
@@ -184,17 +181,13 @@ result_t * parse(int nest) {
         res = scan();
         tk = res->data;
         if (res->code != SUCC || tk == NULL || tk->op_code != OP_LBRAC) {
-            sprintf(bad_token.lexeme, "'(' is need at pos %d", expr_pos + 1);
-            return error(SYNTAX_ERR, &bad_token);
+            return error_seq(SYMBOL_NEED_ERR, "(", expr_pos + 1);
         }
         token_pushstack(&token_stack, tk);
         lbrac_cnt ++;
     }
     while ((res = scan(), tk = res->data) != NULL && res->code == SUCC) {
         token_t *top;
-        if (tk->token_type == BAD_TOKEN) {
-            return error(res->code, res->data);
-        }
         if (tk->token_type == DIGIT) {
             token_enqueue(&token_queue, tk);
         } else if (tk->token_type & OP) {
@@ -231,6 +224,8 @@ result_t * parse(int nest) {
                 token_pushstack(&token_stack, mapped);
                 parse(1);
                 token_enqueue(&token_queue, token_popstack(&token_stack));
+            } else {
+                return error_seq(SYNTAX_ERR, tk->lexeme, expr_pos + 1);
             }
         }
     }
@@ -260,8 +255,7 @@ result_t * do_calc() {
                     token_pushstack(&token_stack, op_func(&cur_token, op, NULL));
                 }
             } else {
-                sprintf(bad_token.lexeme, "Unknown operator '%c'", t->lexeme[0]);
-                return error(SYNTAX_ERR, &bad_token);
+                return error(SYNTAX_UNKNOW_ERR);
             }
         }
     }
@@ -286,8 +280,6 @@ void calc() {
         post_exp();
         do_calc();
         result();
-    } else {
-        error(UNKNOWN_ERR, NULL);
     }
 }
 

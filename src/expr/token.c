@@ -70,7 +70,7 @@ token_t * map_op_token_tbl(char * lex) {
     if (op_token_tbl[lex[0]].op_code != OP_NULL)
         return &op_token_tbl[lex[0]];
     for (i = 256; i < OP_TBL_SIZE; i ++) {
-        if (!strncmp(lex, op_token_tbl[i].lexeme, strlen(op_token_tbl[i].lexeme))) {
+        if (!strncmp(lex, op_token_tbl[i].lexeme, strlen(lex))) {
             return &op_token_tbl[i];
         }
     }
