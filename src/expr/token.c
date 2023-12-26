@@ -3,6 +3,7 @@
 //
 #include "expreval.h"
 #include "token.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -87,4 +88,11 @@ void set_token(token_t * dst, const char * lex, const int lex_len, const token_t
     if (token_type == DIGIT) {
         dst->value = strtod(dst->lexeme, NULL);
     }
+}
+
+void set_token_value(token_t * dst, double value) {
+    memset(dst, 0, sizeof(token_t));
+    dst->token_type = DIGIT;
+    dst->value = value;
+    sprintf(dst->lexeme, "%f", value);
 }

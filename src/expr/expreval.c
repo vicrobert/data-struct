@@ -110,7 +110,7 @@ int operator_prior_compare(char op1, char op2) {
         : (op_token_tbl[op1].op_prior == op_token_tbl[op2].op_prior ? 0 : -1);
 }
 
-token_t * scan() {
+result_t * scan() {
     char cur_char;
     int expr_pre_pos;
 
@@ -121,7 +121,7 @@ token_t * scan() {
     }
 
     if (expr_pos == EXPR_LEN_MAX || cur_char == NULL) {
-        return NULL;
+        return success(0);
     }
 
     // If OP then return
@@ -129,24 +129,24 @@ token_t * scan() {
         if ((cur_char == '-' || cur_char == '+')) {
             if (cur_token.token_type == NIL || !strcmp("(", cur_token.lexeme)) {
                 set_token(&cur_token, "0", 1, DIGIT, OP_NULL, 0);
-                return &cur_token;
+                return success(&cur_token);
             }
             if (!strcmp("+", cur_token.lexeme) || !strcmp("-", cur_token.lexeme)
                 || !strcmp("*", cur_token.lexeme) || !strcmp("/", cur_token.lexeme)
                 || !strcmp("%", cur_token.lexeme) || !strcmp("^", cur_token.lexeme)) {
                 sprintf(bad_token.lexeme, "Bad symbol at pos %d", expr_pos + 1);
-                return &bad_token;
+                return error(SYNTAX_ERR, &bad_token);
             }
         }
         expr_pos ++;
         token_t * mapped = map_op_token_tbl(&cur_char);
         if (mapped == NULL) {
-            sprintf(bad_token.lexeme, "Unknown operator '%c' at pos %d", cur_char, expr_pos + 1);
-            return &bad_token;
+            sprintf(bad_token.lexeme, "Unrecognizable operator '%c' at pos %d", cur_char, expr_pos + 1);
+            return error(SYNTAX_ERR, &bad_token);
         }
         set_token(&cur_token, mapped->lexeme, strlen(mapped->lexeme), mapped->token_type,
                   mapped->op_code, mapped->op_prior);
-        return &cur_token;
+        return success(&cur_token);
     }
 
     expr_pre_pos = expr_pos;
@@ -172,33 +172,36 @@ token_t * scan() {
                   DIGIT, OP_NULL, 0);
     }
 
-    return &cur_token;
+    return success(&cur_token);
 }
 
 result_t * parse(int nest) {
-    token_t * s;
+    token_t * tk;
+    result_t * res;
     int lbrac_cnt = 0;
     int sp_btm = token_stack.top;
     if (nest) {
-        s = scan();
-        if (s->op_code != OP_LBRAC) {
-            return error(1);
+        res = scan();
+        tk = res->data;
+        if (res->code != SUCC || tk == NULL || tk->op_code != OP_LBRAC) {
+            sprintf(bad_token.lexeme, "'(' is need at pos %d", expr_pos + 1);
+            return error(SYNTAX_ERR, &bad_token);
         }
-        token_pushstack(&token_stack, &cur_token);
+        token_pushstack(&token_stack, tk);
         lbrac_cnt ++;
     }
-    while ((s = scan()) != NULL) {
+    while ((res = scan(), tk = res->data) != NULL && res->code == SUCC) {
         token_t *top;
-        if (s->token_type == BAD_TOKEN) {
-            return error(1);
+        if (tk->token_type == BAD_TOKEN) {
+            return error(res->code, res->data);
         }
-        if (cur_token.token_type == DIGIT) {
-            token_enqueue(&token_queue, &cur_token);
-        } else if (cur_token.token_type & OP) {
-            if (!strcmp("(", cur_token.lexeme)) {
-                token_pushstack(&token_stack, &cur_token);
+        if (tk->token_type == DIGIT) {
+            token_enqueue(&token_queue, tk);
+        } else if (tk->token_type & OP) {
+            if (!strcmp("(", tk->lexeme)) {
+                token_pushstack(&token_stack, tk);
                 lbrac_cnt ++;
-            } else if (!strcmp(")", cur_token.lexeme)) {
+            } else if (!strcmp(")", tk->lexeme)) {
                 while (token_stack.top > sp_btm) {
                     top = token_popstack(&token_stack);
                     if (!strcmp("(", top->lexeme)) {
@@ -208,23 +211,22 @@ result_t * parse(int nest) {
                 }
                 lbrac_cnt --;
                 if (nest && lbrac_cnt == 0) {
-                    return success();
+                    return success(SUCC);
                 }
             } else {
                 while (token_stack.top > sp_btm) {
                     top = token_peekstack(&token_stack);
-                    if (operator_prior_compare(top->lexeme[0],
-                                             cur_token.lexeme[0]) >= 0) {
+                    if (operator_prior_compare(top->lexeme[0],tk->lexeme[0]) >= 0) {
                         token_enqueue(&token_queue, top);
                         token_popstack(&token_stack);
                     } else {
                         break;
                     }
                 }
-                token_pushstack(&token_stack, &cur_token);
+                token_pushstack(&token_stack, tk);
             }
-        } else if (ALPHABET == cur_token.token_type) {
-            token_t * mapped = map_op_token_tbl(cur_token.lexeme);
+        } else if (tk->token_type == ALPHABET) {
+            token_t * mapped = map_op_token_tbl(tk->lexeme);
             if (mapped != NULL) {
                 token_pushstack(&token_stack, mapped);
                 parse(1);
@@ -237,10 +239,10 @@ result_t * parse(int nest) {
     while (/* !is_stack_empty(&token_stack) */ token_stack.top > sp_btm) {
         token_enqueue(&token_queue, token_popstack(&token_stack));
     }
-    return success();
+    return success(SUCC);
 }
 
-int do_calc() {
+result_t * do_calc() {
     token_t * t;
     memset(&token_stack, 0, sizeof(token_stack_t));
     while ((t = token_dequeue(&token_queue)) != NULL ) {
@@ -254,16 +256,16 @@ int do_calc() {
                     token_t *left = token_popstack(&token_stack);
                     token_pushstack(&token_stack, op_func(&cur_token, left, right));
                 } else if (t->token_type == UN_OP) {
-                    token_t *left = token_popstack(&token_stack);
-                    token_pushstack(&token_stack, op_func(&cur_token, left, NULL));
+                    token_t *op = token_popstack(&token_stack);
+                    token_pushstack(&token_stack, op_func(&cur_token, op, NULL));
                 }
             } else {
                 sprintf(bad_token.lexeme, "Unknown operator '%c'", t->lexeme[0]);
-                return 1;
+                return error(SYNTAX_ERR, &bad_token);
             }
         }
     }
-    return 0;
+    return success(SUCC);
 }
 
 void post_exp() {
@@ -285,7 +287,7 @@ void calc() {
         do_calc();
         result();
     } else {
-        error(1);
+        error(UNKNOWN_ERR, NULL);
     }
 }
 
@@ -305,7 +307,12 @@ void test() {
     reset();
     strcpy(infix_expr, "0-(-1-2)+3*4");
     calc();
+
+    reset();
+    strcpy(infix_expr, "-((3+3)*sin(3.141592654/2)+10+cos(3.141592654))");
+    calc();
 }
+
 int main() {
     init_op_token_tbl();
     printf("Expression Evaluator 1.0\nBy YangJunbo(yangjunbo@360.cn) 12/22/23\n");
