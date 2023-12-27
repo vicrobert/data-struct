@@ -29,8 +29,8 @@ const func_tbl_entry_t op_func_tbl[FUNC_TBL_SIZE] = {
         {OP_NULL, NULL}, //PADDING
         {OP_NULL, NULL}, //PADDING
         {OP_NULL, NULL}, //PADDING
-        {OP_NULL, NULL}, //PADDING
-        {OP_LOG, calc_log}
+        {OP_LOG, calc_log},
+        {OP_FACTOR, calc_factor}
 };
 
 token_t op_token_tbl[OP_TBL_SIZE] = { 0 };
@@ -68,6 +68,10 @@ void init_op_token_tbl() {
     op_token_tbl['^'].token_type = BIN_OP;
     op_token_tbl['^'].op_prior = 2;
     op_token_tbl['^'].lexeme[0] = '^';
+    op_token_tbl['!'].op_code = OP_FACTOR;
+    op_token_tbl['!'].token_type = UN_OP;
+    op_token_tbl['!'].op_prior = 2;
+    op_token_tbl['!'].lexeme[0] = '!';
     //from pos 256 to start high-level function
     op_token_tbl[256].op_code = OP_SIN;
     op_token_tbl[256].token_type = UN_OP;
@@ -164,5 +168,15 @@ token_t * calc_ctan(token_t * dst, token_t * op1, token_t * op2) {
 token_t * calc_log(token_t * dst, token_t * op1, token_t * op2) {
     UNUSED(op2);
     set_token_value(dst, log(op1->value));
+    return dst;
+}
+
+//阶乘
+token_t * calc_factor(token_t * dst, token_t * op1, token_t * op2) {
+    UNUSED(op2);
+    double res = 1;
+    for (int i = 2; i <= op1->value; i ++)
+        res *= i;
+    set_token_value(dst, res);
     return dst;
 }
