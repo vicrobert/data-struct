@@ -2,44 +2,15 @@
 // Created by 杨钧博 on 2023/12/22.
 //
 #include "expreval.h"
-#include "operator.h"
 #include "token.h"
 #include "result.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #define VALID_DIGIT_LEN 11
 const char VALID_DIGIT[] = {
         '0', '1', '2', '3', '4', '5',
         '6', '7', '8', '9', '.'
-};
-
-const func_tbl_entry_t op_func_tbl[FUNC_TBL_SIZE] = {
-        {OP_NULL, NULL}, //PADDING
-        {OP_ADD, calc_add},
-        {OP_MINUS, calc_minus},
-        {OP_MULT, calc_mult},
-        {OP_DIV, calc_div},
-        {OP_REMMAIND, calc_remaind},
-        {OP_LBRAC, NULL},
-        {OP_RBRAC, NULL},
-        {OP_POWER, calc_power},
-        /** 9-20 reserved for extending **/
-        {OP_SIN, calc_sin},
-        {OP_COS, calc_cos},
-        {OP_TAN, calc_tan},
-        {OP_CTAN, calc_ctan},
-        /** 9-20 end **/
-        {OP_NULL, NULL}, //PADDING
-        {OP_NULL, NULL}, //PADDING
-        {OP_NULL, NULL}, //PADDING
-        {OP_NULL, NULL}, //PADDING
-        {OP_NULL, NULL}, //PADDING
-        {OP_NULL, NULL}, //PADDING
-        {OP_NULL, NULL}, //PADDING
-        {OP_NULL, NULL}, //PADDING
-        {OP_LOG, calc_log}
 };
 
 token_queue_t token_queue = {};
@@ -119,7 +90,7 @@ result_t * scan() {
         cur_char = infix_expr[++ expr_pos];
     }
 
-    if (expr_pos == EXPR_LEN_MAX || cur_char == NULL) {
+    if (expr_pos == EXPR_LEN_MAX || cur_char == '\0') {
         return success(0);
     }
 
@@ -301,7 +272,7 @@ void test() {
     calc();
 
     reset();
-    strcpy(infix_expr, "-((3+3)*sin(3.141592654/2)+10+cos(3.141592654))");
+    strcpy(infix_expr, "-((3+2)*sin(3.141592654/2)+10+cos(3.141592654))");
     calc();
 }
 
