@@ -130,8 +130,12 @@ result_t * scan() {
         set_token(&cur_token, &infix_expr[expr_pre_pos], expr_pos - expr_pre_pos,
                   ALPHABET, OP_NULL, 0);
     } else {
+        int dp = 0;
         do {
             cur_char = infix_expr[++expr_pos];
+            if (cur_char == '.') dp ++;
+            if (dp > 1)
+                return error_ch(ILLEGAL_NUM_ERR, cur_char, expr_pos + 1);
         } while (expr_pos < EXPR_LEN_MAX
                  && cur_char != 0 && DIGIT == get_token_type(cur_char)
                  && (cur_char != ' ') && (cur_char != '\t') && (cur_char != '\n'));
@@ -234,11 +238,11 @@ result_t * do_calc() {
 }
 
 void post_exp() {
-    printf("PostExpression: ");
-    for (int i = token_queue.head; i < token_queue.tail; i ++) {
-        printf("[%s] ", token_queue.queue[i].lexeme);
-    }
-    printf("\n");
+//    printf("PostExpression: ");
+//    for (int i = token_queue.head; i < token_queue.tail; i ++) {
+//        printf("[%s] ", token_queue.queue[i].lexeme);
+//    }
+//    printf("\n");
 }
 
 void result() {
