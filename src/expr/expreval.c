@@ -6,6 +6,8 @@
 #include "result.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #define VALID_DIGIT_LEN 11
 const char VALID_DIGIT[] = {
@@ -280,13 +282,28 @@ void test() {
     calc();
 }
 
+
+void test_realloc() {
+
+    int * pa = (int*)malloc(1024*sizeof(int));
+    pa[1] = 1;
+    pa[1023] = 1023;
+    printf("[1]->%d, [1023]->%d\n", pa[1], pa[1023]);
+    pa = (int*) realloc(pa, 2048*sizeof(int));
+    printf("[1]->%d, [1023]->%d\n", pa[1], pa[1023]);
+
+    pa[2047] = 2047;
+    printf("[2047]->%d\n", pa[2047]);
+
+    free(pa);
+}
 int main() {
     init_op_token_tbl();
     printf("Expression Evaluator 1.0\nBy YangJunbo(yangjunbo@360.cn) 12/22/23\n");
     while (1) {
         reset();
         printf(">>>");
-        scanf("%s", infix_expr);
+        read(0, infix_expr, EXPR_LEN_MAX);
         if (!strcmp("quit", infix_expr)) break;
         if (!strcmp("test", infix_expr)) {
             test();
