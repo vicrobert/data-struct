@@ -12,4 +12,5 @@ add_executable(data_struct
         src/expr/operator.c
         src/expr/token.c
         src/expr/result.c
+        src/expr/tensor.c
 )
